@@ -15,3 +15,23 @@ class Node:
 
     def __str__(self):
         return f"Node(labels={self.labels}, properties={self.properties})"
+
+
+@dataclass
+class Relationship:
+    """
+    Represents a relationship in the Neo4j database.
+    """
+
+    start_node: Node
+    end_node: Node
+    relationship_type: str
+    properties: Dict[str, any]
+
+    def __str__(self):
+        return (
+            f"Relationship(start_node={self.start_node}, "
+            f"end_node={self.end_node}, "
+            f"relationship_type={self.relationship_type}, "
+            f"properties={self.properties})"
+        )

@@ -7,6 +7,7 @@ from logger.logger import Logger
 from models.neo4j_driver_models.connection_model import ConnectionModel
 from models.neo4j_driver_models.database_models import Node
 from utils.constants import NEO4J_DEFAULT_NUMBER_OF_NODES
+from utils.enums import Label, RelationshipType
 
 
 class Neo4jDriver:
@@ -126,3 +127,52 @@ class Neo4jDriver:
         parameters = {"properties": properties}
         result = self.execute_query(query, parameters)
         return self._cast_to_nodes(result)[0] if result else None
+
+    def get_relationships(
+        self,
+        relationship_types: List[RelationshipType],
+        start_node_labels: List[Label] = None,
+        start_node_properties: Dict[str, Any] = None,
+        end_node_labels: List[Label] = None,
+        end_node_properties: Dict[str, Any] = None,
+        limit: int = NEO4J_DEFAULT_NUMBER_OF_NODES,
+    ) -> List[Dict[str, Any]]:
+        """Retrieve relationships between nodes."""
+        start_node = "start_node"
+        if start_node_labels:
+            start_node += f":{':'.join([label.value for label in start_node_labels])}"
+        if start_node_properties:
+            start_node += " WHERE " + " AND ".join(
+                [
+                    (
+                        f"start_node.{key} = '{value}'"
+                        if isinstance(value, str)
+                        else f"start_node.{key} = {value}"
+                    )
+                    for key, value in start_node_properties.items()
+                ]
+            )
+
+        end_node = "end_node"
+        if end_node_labels:
+            end_node += f":{':'.join([label.value for label in end_node_labels])}"
+        if end_node_properties:
+            end_node += " WHERE " + " AND ".join(
+                [
+                    (
+                        f"end_node.{key} = '{value}'"
+                        if isinstance(value, str)
+                        else f"end_node.{key} = {value}"
+                    )
+                    for key, value in end_node_properties.items()
+                ]
+            )
+
+        query = (
+            f"MATCH ({start_node})-[r:{':'.join([rt.value for rt in relationship_types])}]->({end_node}) "
+            "RETURN start_node, end_node, type(r) AS relationship_type, properties(r) AS props "
+            f"LIMIT {limit}"
+        )
+
+        result = self.execute_query(query)
+        return result
