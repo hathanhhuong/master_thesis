@@ -5,6 +5,7 @@ from database_driver.neo4j_driver import Neo4jDriver
 from logger.logger import Logger, LogType
 from models.neo4j_driver_models.connection_model import ConnectionModel
 from utils.constants import LOG_FILE_BASE
+from utils.enums import Label
 
 load_dotenv()
 
@@ -19,8 +20,8 @@ def main():
         password=os.getenv("NEO4J_PASSWORD"),
     )
     my_neo4j_driver.connect(my_connection_model)
-    result = my_neo4j_driver.execute_query(
-        "MATCH (n) RETURN n LIMIT 10", {"hello": "world"}
+    result = my_neo4j_driver.get_nodes(
+        labels=[Label.MOVIE.value], properties={"released": 1997}
     )
     print(result)
 

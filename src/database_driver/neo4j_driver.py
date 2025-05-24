@@ -1,7 +1,10 @@
+from typing import Any, Dict, List
 from neo4j import GraphDatabase
 
 from logger.logger import Logger
 from models.neo4j_driver_models.connection_model import ConnectionModel
+from models.neo4j_driver_models.database_models import Node
+from utils.constants import NEO4J_DEFAULT_NUMBER_OF_NODES
 
 
 class Neo4jDriver:
@@ -58,3 +61,26 @@ class Neo4jDriver:
         except Exception as e:
             self._logger.log_error(f"Query execution failed: {e}")
             raise RuntimeError(f"Query execution failed: {e}")
+
+    def _cast_to_nodes(self, result: List[Dict[str, Any]]) -> List[Node]:
+        return [
+            Node(labels=entry["labels"], properties=entry["props"]) for entry in result
+        ]
+
+    def get_nodes(
+        self,
+        labels: List[str],
+        properties: Dict[str, any] = None,
+        limit: int = NEO4J_DEFAULT_NUMBER_OF_NODES,
+    ) -> list[dict]:
+        """Retrieve nodes with a specific labels."""
+        query = f"MATCH (n:{':'.join(labels)})"
+        if properties:
+            query += " WHERE " + " AND ".join(
+                [f"n.{key} = {value}" for key, value in properties.items()]
+            )
+        query += " RETURN labels(n) AS labels, properties(n) AS props"
+        query += f" LIMIT {limit}"
+        self._logger.log_info(f"Retrieving nodes with labels: {labels}")
+        result = self.execute_query(query)
+        return self._cast_to_nodes(result) if result else []
