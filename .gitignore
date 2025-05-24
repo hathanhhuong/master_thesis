@@ -1,2 +1,8 @@
 
 *.csv
+
+src/database_driver/__pycache__/
+
+src/models/neo4j_driver_models/__pycache__/
+
+.env
