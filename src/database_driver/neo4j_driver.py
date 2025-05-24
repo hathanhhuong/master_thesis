@@ -1,5 +1,7 @@
 from typing import Any, Dict, List
 from neo4j import GraphDatabase
+from datetime import date, datetime
+from neo4j.time import Date as Neo4jDate, DateTime as Neo4jDateTime
 
 from logger.logger import Logger
 from models.neo4j_driver_models.connection_model import ConnectionModel
@@ -63,27 +65,64 @@ class Neo4jDriver:
             raise RuntimeError(f"Query execution failed: {e}")
 
     def _cast_to_nodes(self, result: List[Dict[str, Any]]) -> List[Node]:
+        def convert_value(value):
+            if isinstance(value, Neo4jDate):
+                # Convert Neo4j Date to Python date
+                return date(value.year, value.month, value.day)
+            elif isinstance(value, Neo4jDateTime):
+                # Convert Neo4j DateTime to Python datetime
+                return datetime(
+                    value.year,
+                    value.month,
+                    value.day,
+                    value.hour,
+                    value.minute,
+                    value.second,
+                    value.microsecond,
+                )
+            return value  # Leave other types unchanged
+
+        def convert_props(props):
+            return {k: convert_value(v) for k, v in props.items()}
+
         return [
-            Node(labels=entry["labels"], properties=entry["props"]) for entry in result
+            Node(labels=entry["labels"], properties=convert_props(entry["props"]))
+            for entry in result
         ]
 
     def get_nodes(
         self,
-        labels: List[str] = None,
+        labels: List[Label] = None,
         properties: Dict[str, any] = None,
         limit: int = NEO4J_DEFAULT_NUMBER_OF_NODES,
     ) -> list[dict]:
         """Retrieve nodes with a specific labels."""
         if labels:
-            query = f"MATCH (n:{':'.join(labels)})"
+            query = f"MATCH (n:{':'.join([label.value for label in labels])})"
         else:
             query = "MATCH (n)"
         if properties:
             query += " WHERE " + " AND ".join(
-                [f"n.{key} = {value}" for key, value in properties.items()]
+                [
+                    (
+                        f"n.{key} = '{value}'"
+                        if isinstance(value, str)
+                        else f"n.{key} = {value}"
+                    )
+                    for key, value in properties.items()
+                ]
             )
         query += " RETURN labels(n) AS labels, properties(n) AS props"
         query += f" LIMIT {limit}"
-        self._logger.log_info(f"Retrieving nodes with labels: {labels}")
+        self._logger.log_info(
+            f"Retrieving nodes with labels: {[label.value for label in labels] if labels else '*'} "
+        )
         result = self.execute_query(query)
         return self._cast_to_nodes(result) if result else []
+
+    def create_node(self, labels: List[Label], properties: Dict[str, Any]) -> Node:
+        """Create a new node in the Neo4j database."""
+        query = f"CREATE (n:{':'.join([label.value for label in labels])}) SET n = $properties RETURN labels(n) AS labels, properties(n) AS props"
+        parameters = {"properties": properties}
+        result = self.execute_query(query, parameters)
+        return self._cast_to_nodes(result)[0] if result else None
