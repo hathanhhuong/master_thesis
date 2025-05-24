@@ -19,6 +19,10 @@ def main():
         password=os.getenv("NEO4J_PASSWORD"),
     )
     my_neo4j_driver.connect(my_connection_model)
+    result = my_neo4j_driver.execute_query(
+        "MATCH (n) RETURN n LIMIT 10", {"hello": "world"}
+    )
+    print(result)
 
 
 if __name__ == "__main__":

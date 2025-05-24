@@ -9,13 +9,11 @@ class Neo4jDriver:
         self._logger = logger
         self._connection_model: ConnectionModel = None
         self._driver = None
-        self._session = None
 
     def _test_connection(self) -> bool:
         """Test the connection to the Neo4j database."""
         try:
-            with self._session as session:
-                _ = session.run("RETURN 1")
+            _ = self._driver.execute_query("RETURN 1")
             return True
         except Exception as e:
             return False
@@ -28,7 +26,6 @@ class Neo4jDriver:
                 connection_model.host,
                 auth=(connection_model.user, connection_model.password),
             )
-            self._session = self._driver.session()
 
             if not self._test_connection():
                 raise ValueError("Connection test failed.")
@@ -41,12 +38,23 @@ class Neo4jDriver:
     def close(self):
         self._driver.close()
 
-    # def test(self) -> None:
-    #     query = "MATCH (n) RETURN n"
-    #     result = self._driver.execute_query(query)
-    #     print(result)
+    def execute_query(self, query: str, parameters=None):
+        if not self._driver:
+            self._logger.log_error("Driver is not initialized. Please connect first.")
+            raise RuntimeError("Driver is not initialized. Please connect first.")
 
-    # def execute_query(self, query: str, parameters=None):
-    #     with self._driver.session() as session:
-    #         result = session.run(query, parameters or {})
-    #         return [record.data() for record in result]
+        self._logger.log_info(
+            f'Executing query: "{query}" with parameters: {parameters}'
+        )
+
+        try:
+            with self._driver.session() as session:
+                response = session.run(query, parameters or {})
+                result = [element.data() for element in response]
+                self._logger.log_info(
+                    f"Query executed successfully. Retrieved {len(result)} records."
+                )
+                return result
+        except Exception as e:
+            self._logger.log_error(f"Query execution failed: {e}")
+            raise RuntimeError(f"Query execution failed: {e}")
