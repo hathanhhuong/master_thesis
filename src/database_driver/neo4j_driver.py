@@ -69,12 +69,15 @@ class Neo4jDriver:
 
     def get_nodes(
         self,
-        labels: List[str],
+        labels: List[str] = None,
         properties: Dict[str, any] = None,
         limit: int = NEO4J_DEFAULT_NUMBER_OF_NODES,
     ) -> list[dict]:
         """Retrieve nodes with a specific labels."""
-        query = f"MATCH (n:{':'.join(labels)})"
+        if labels:
+            query = f"MATCH (n:{':'.join(labels)})"
+        else:
+            query = "MATCH (n)"
         if properties:
             query += " WHERE " + " AND ".join(
                 [f"n.{key} = {value}" for key, value in properties.items()]
