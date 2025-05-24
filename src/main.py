@@ -8,7 +8,7 @@ from logger.logger import Logger, LogType
 from models.neo4j_driver_models.connection_model import ConnectionModel
 from models.neo4j_driver_models.database_models import Node
 from utils.constants import LOG_FILE_BASE
-from utils.enums import Label
+from utils.enums import Label, RelationshipType
 
 load_dotenv()
 
@@ -23,20 +23,10 @@ def main():
         password=os.getenv("NEO4J_PASSWORD"),
     )
     my_neo4j_driver.connect(my_connection_model)
-    my_neo4j_driver.create_node(
-        labels=[Label.MOVIE.value],
-        properties={
-            "title": "Avartar",
-            "year": 2009,
-            "rating": 7.8,
-            "eventDate": date(2025, 5, 24),
-        },
+    relationships = my_neo4j_driver.get_relationships(
+        relationship_types=[RelationshipType.ACTED_IN], limit=1
     )
-    result: List[Node] = my_neo4j_driver.get_nodes(
-        labels=[Label.MOVIE.value], properties={"title": "Avartar"}
-    )
-    my_date = result[0].properties["eventDate"]
-    print(type(my_date))
+    print(relationships)
 
 
 if __name__ == "__main__":
