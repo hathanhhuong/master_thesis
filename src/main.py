@@ -54,9 +54,9 @@ def main():
     )
     print(f"Created node: {prison_break}")
 
-    # # Get all nodes
-    # nodes = my_neo4j_driver.get_nodes()
-    # print("All nodes in the database: ", nodes)
+    # Get all nodes
+    nodes = my_neo4j_driver.get_nodes()
+    print("All nodes in the database: ", nodes)
 
     # # Update nodes
     # trung_updated = my_neo4j_driver.update_node(

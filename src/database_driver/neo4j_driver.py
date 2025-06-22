@@ -100,7 +100,7 @@ class Neo4jDriver:
         labels: List[Label] = None,
         properties: Dict[str, any] = None,
         limit: int = NEO4J_DEFAULT_NUMBER_OF_NODES,
-    ) -> list[dict]:
+    ) -> list[Node]:
         """Retrieve nodes with a specific labels."""
         if labels:
             query = f"MATCH (n:{':'.join([label.value for label in labels])})"
@@ -117,7 +117,7 @@ class Neo4jDriver:
                     for key, value in properties.items()
                 ]
             )
-        query += " RETURN labels(n) AS labels, properties(n) AS props"
+        query += " RETURN id(n) AS id, labels(n) AS labels, properties(n) AS props"
         query += f" LIMIT {limit}"
         self._logger.log_info(
             f"Retrieving nodes with labels: {[label.value for label in labels] if labels else '*'} "
