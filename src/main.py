@@ -63,8 +63,7 @@ def main():
     print("All nodes in the database: ", nodes)
 
     # Update nodes
-    trung_updated = my_neo4j_driver.update_node(
-        labels=[Label.PERSON],
+    trung_updated = my_neo4j_driver.update_nodes(
         match_criteria={"name": "Trung"},
         new_properties={"age": 999},
     )

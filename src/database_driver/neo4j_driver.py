@@ -164,21 +164,41 @@ class Neo4jDriver:
         result = self.execute_query(query, parameters)
         return self._cast_to_nodes(result)[0] if result else None
 
-    def update_node(
+    def update_nodes(
         self,
-        labels: List[Label],
-        match_criteria: Dict[str, Any],
-        new_properties: Dict[str, Any],
+        labels: List[Label] = None,
+        match_criteria: Dict[str, Any] = None,
+        new_properties: Dict[str, Any] = None,
     ) -> Node:
         """Update an existing node in the Neo4j database."""
-        match_clause = " AND ".join([f"n.{key} = ${key}" for key in match_criteria])
+        if not new_properties:
+            self._logger.log_error("New properties must be provided for update.")
+            raise ValueError("New properties must be provided for update.")
+
+        match_clause = "MATCH (n"
+        if labels:
+            match_clause += f":{':'.join(label.value for label in labels)}"
+        match_clause += ")"
+
+        where_clause = ""
+        if match_criteria:
+            conditions = [f"n.{key} = ${key}" for key in match_criteria]
+            where_clause = "WHERE " + " AND ".join(conditions)
+
         query = f"""
-        MATCH (n:{':'.join([label.value for label in labels])})
-        WHERE {match_clause}
+        {match_clause}
+        {where_clause}
         SET n += $new_properties
         RETURN id(n) AS id, labels(n) AS labels, properties(n) AS properties
         """
-        parameters = {**match_criteria, "new_properties": new_properties}
+
+        parameters = {**(match_criteria or {}), "new_properties": new_properties}
+
+        self._logger.log_info(
+            f"Updating node with labels: {[label.value for label in labels] if labels else '*'} "
+            f"and match_criteria: {match_criteria or '{}'}, new_properties: {new_properties}"
+        )
+
         result = self.execute_query(query, parameters)
         return self._cast_to_nodes(result)[0] if result else None
 
