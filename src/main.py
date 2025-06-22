@@ -16,6 +16,7 @@ load_dotenv()
 def main():
     my_logger = Logger(file_name=LOG_FILE_BASE)
     my_logger.log_info("START")
+
     my_neo4j_driver = Neo4jDriver(my_logger)
     my_connection_model = ConnectionModel(
         host=os.getenv("NEO4J_HOST"),
@@ -24,21 +25,49 @@ def main():
     )
     my_neo4j_driver.connect(my_connection_model)
     
-    # Step 1: Create a test node
-    print("Creating test node...")
-    test_node = my_neo4j_driver.create_node(
-        labels=[Label.PERSON], properties={"name": "John Doe", "age": 30}
+    _ = my_neo4j_driver.execute_query(
+        query="MATCH (n) DETACH DELETE n",
+        parameters=None,
     )
-    print("Created node:", test_node)
 
-    # Step 2: Update the test node's age and name
-    print("Updating test node...")
-    updated_node = my_neo4j_driver.update_node(
-        labels=[Label.PERSON],
-        match_criteria={"name": "John Doe"},  # Match using unique property
-        new_properties={"age": 35, "name": "Johnathan Doe"},
+    # Create nodes
+    trung = my_neo4j_driver.create_node(
+        labels=[Label.PERSON], properties={"name": "Trung", "age": 25}
     )
-    print("Updated node:", updated_node)
+    print(f"Created node: {trung}")
+    huong = my_neo4j_driver.create_node(
+        labels=[Label.PERSON], properties={"name": "Huong", "age": 26}
+    )
+    print(f"Created node: {huong}")
+    phuong = my_neo4j_driver.create_node(
+        labels=[Label.PERSON], properties={"name": "Phuong", "age": 26}
+    )
+    print(f"Created node: {phuong}")
+    vo = my_neo4j_driver.create_node(
+        labels=[Label.PERSON], properties={"name": "Vo", "age": 31}
+    )
+    print(f"Created node: {vo}")
+
+    prison_break = my_neo4j_driver.create_node(
+        labels=[Label.MOVIES],
+        properties={"name": "Prison Break", "release_date": date(2005, 8, 29)},
+    )
+    print(f"Created node: {prison_break}")
+
+    # Get all nodes
+    nodes = my_neo4j_driver.get_nodes()
+    print("All nodes in the database: ", nodes)
+
+    # Update nodes
+    trung_updated = my_neo4j_driver.update_node(
+        labels=[Label.PERSON],
+        match_criteria={"name": "Trung"},
+        new_properties={"age": 999},
+    )
+
+    # Get all nodes again to see the update
+    nodes = my_neo4j_driver.get_nodes()
+    print("All nodes in the database: ", nodes)
 
 
 if __name__ == "__main__":

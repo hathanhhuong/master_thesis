@@ -2,9 +2,10 @@ from enum import Enum
 
 
 class Label(Enum):
-    MOVIE = "Movie"
     PERSON = "Person"
+    MOVIES = "Movies"
 
 
 class RelationshipType(Enum):
-    ACTED_IN = "ACTED_IN"
+    KNOWS = "KNOWS"
+    WATCH = "WATCH"
