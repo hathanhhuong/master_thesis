@@ -123,6 +123,19 @@ def main():
     all_relationships = my_neo4j_driver.get_relationships()
     print("All relationships in the database after update: ", all_relationships)
 
+    # Delete relationship
+    deleted_relationships_count = my_neo4j_driver.delete_relationships(
+        start_node_properties={"name": "Trung"},
+        relationship_type=RelationshipType.WATCHES,
+    )
+    print(f"Deleted relationships count: {deleted_relationships_count}")
+
+    # # Delete node
+    # deleted_nodes_count = my_neo4j_driver.delete_nodes(
+    #     match_criteria={"name": "Prison Break"},
+    # )
+    # print(f"Deleted nodes count: {deleted_nodes_count}")
+
 
 if __name__ == "__main__":
     main()

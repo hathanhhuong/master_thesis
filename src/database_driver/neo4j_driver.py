@@ -348,33 +348,80 @@ class Neo4jDriver:
         result = self.execute_query(query, parameters)
         return self._cast_to_relationships(result) if result else None
 
-    def delete_relationship(
+    def delete_relationships(
         self,
-        start_node_labels: List[Label],
-        start_node_properties: Dict[str, Any],
-        end_node_labels: List[Label],
-        end_node_properties: Dict[str, Any],
-        relationship_type: RelationshipType,
-        new_properties: Dict[str, Any],
-    ) -> Relationship:
-        """Update an existing relationship."""
-        match_clause = (
-            f"MATCH (start:{':'.join([label.value for label in start_node_labels])} "
-            f"{{{', '.join([f'{k}: $start_{k}' for k in start_node_properties])}}})-"
-            f"[r:{relationship_type.value}]->(end:{':'.join([label.value for label in end_node_labels])} "
-            f"{{{', '.join([f'{k}: $end_{k}' for k in end_node_properties])}}})"
-        )
+        start_node_labels: List[Label] = None,
+        start_node_properties: Dict[str, Any] = None,
+        end_node_labels: List[Label] = None,
+        end_node_properties: Dict[str, Any] = None,
+        relationship_type: RelationshipType = None,
+        force: bool = False,
+    ) -> int:
+        """Delete relationships between nodes with optional filtering."""
 
-        query = (
-            f"{match_clause} SET r += $new_properties "
-            "RETURN id(r) AS id, id(start) AS start_id, id(end) AS end_id, type(r) AS type, properties(r) AS properties"
-        )
+        if (
+            not start_node_labels
+            and not start_node_properties
+            and not end_node_labels
+            and not end_node_properties
+            and not relationship_type
+        ):
+            if force:
+                self._logger.log_warning(
+                    "No specific labels or match criteria provided. If you want to delete all relationships, set force=True."
+                )
+                return None
+            else:
+                query = "MATCH ()-[r]->() DELETE r RETURN count(r) AS deleted_count"
+                result = self.execute_query(query)
+                deleted_count = result[0]["deleted_count"] if result else 0
+                self._logger.log_warning(
+                    f"Deleted all ({deleted_count}) relationships in the database (force=True)."
+                )
+                return deleted_count
 
+        start_node_pattern = "start"
+        if start_node_labels:
+            start_node_pattern += (
+                f":{':'.join(label.value for label in start_node_labels)}"
+            )
+        if start_node_properties:
+            start_node_pattern += (
+                " {"
+                + ", ".join(f"{k}: $start_{k}" for k in start_node_properties)
+                + "}"
+            )
+
+        # Build end node pattern
+        end_node_pattern = "end"
+        if end_node_labels:
+            end_node_pattern += f":{':'.join(label.value for label in end_node_labels)}"
+        if end_node_properties:
+            end_node_pattern += (
+                " {" + ", ".join(f"{k}: $end_{k}" for k in end_node_properties) + "}"
+            )
+
+        # Build relationship pattern
+        relationship_pattern = "r"
+        if relationship_type:
+            relationship_pattern += f":{relationship_type.value}"
+
+        match_clause = f"MATCH ({start_node_pattern})-[{relationship_pattern}]->({end_node_pattern})"
+        query = f"{match_clause} DELETE r RETURN count(r) AS deleted_count"
+
+        # Prepare parameters
         parameters = {
-            **{f"start_{k}": v for k, v in start_node_properties.items()},
-            **{f"end_{k}": v for k, v in end_node_properties.items()},
-            "new_properties": new_properties,
+            **{f"start_{k}": v for k, v in (start_node_properties or {}).items()},
+            **{f"end_{k}": v for k, v in (end_node_properties or {}).items()},
         }
 
+        self._logger.log_info(
+            f"Deleting relationships of type: {relationship_type.value if relationship_type else '*'}, "
+            f"start_node_labels: {[label.value for label in start_node_labels] if start_node_labels else '*'}, "
+            f"end_node_labels: {[label.value for label in end_node_labels] if end_node_labels else '*'}"
+        )
+
         result = self.execute_query(query, parameters)
-        return self._cast_to_relationships(result)[0] if result else None
+        deleted_count = result[0]["deleted_count"] if result else 0
+        self._logger.log_info(f"Deleted {deleted_count} relationship(s).")
+        return deleted_count
