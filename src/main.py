@@ -70,7 +70,7 @@ def main():
     nodes = my_neo4j_driver.get_nodes()
     print("All nodes in the database: ", nodes)
 
-    # Create relationships
+    # # Create relationships
     # vo_knows_huong = my_neo4j_driver.create_relationship(
     #     start_node_labels=[Label.PERSON],
     #     start_node_properties={"name": "Vo"},

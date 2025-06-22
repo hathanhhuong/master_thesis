@@ -90,6 +90,11 @@ class Neo4jDriver:
             Node(
                 id=entry["id"],
                 labels=entry["labels"],
+                properties=convert_props(entry["properties"]),
+            )
+            for entry in result
+        ]
+
                 properties=convert_props(entry["props"]),
             )
             for entry in result
@@ -117,7 +122,7 @@ class Neo4jDriver:
                     for key, value in properties.items()
                 ]
             )
-        query += " RETURN id(n) AS id, labels(n) AS labels, properties(n) AS props"
+        query += " RETURN id(n) AS id, labels(n) AS labels, properties(n) AS properties"
         query += f" LIMIT {limit}"
         self._logger.log_info(
             f"Retrieving nodes with labels: {[label.value for label in labels] if labels else '*'} "
@@ -127,7 +132,7 @@ class Neo4jDriver:
 
     def create_node(self, labels: List[Label], properties: Dict[str, Any]) -> Node:
         """Create a new node in the Neo4j database."""
-        query = f"CREATE (n:{':'.join([label.value for label in labels])}) SET n = $properties RETURN id(n) AS id, labels(n) AS labels, properties(n) AS props"
+        query = f"CREATE (n:{':'.join([label.value for label in labels])}) SET n = $properties RETURN id(n) AS id, labels(n) AS labels, properties(n) AS properties"
         parameters = {"properties": properties}
         result = self.execute_query(query, parameters)
         return self._cast_to_nodes(result)[0] if result else None
@@ -144,7 +149,7 @@ class Neo4jDriver:
         MATCH (n:{':'.join([label.value for label in labels])})
         WHERE {match_clause}
         SET n += $new_properties
-        RETURN id(n) AS id, labels(n) AS labels, properties(n) AS props
+        RETURN id(n) AS id, labels(n) AS labels, properties(n) AS properties
         """
         parameters = {**match_criteria, "new_properties": new_properties}
         result = self.execute_query(query, parameters)

@@ -26,15 +26,17 @@ class Relationship:
     Represents a relationship in the Neo4j database.
     """
 
-    start_node: Node
-    end_node: Node
-    relationship_type: str
+    id: int
+    start_id: int
+    end_id: int
+    type: str
     properties: Dict[str, any]
 
     def __str__(self):
         return (
-            f"Relationship(start_node={self.start_node}, "
-            f"end_node={self.end_node}, "
-            f"relationship_type={self.relationship_type}, "
+            f"Relationship(id={self.id}, "
+            f"start_id={self.start_id}, "
+            f"end_id={self.end_id}, "
+            f"type={self.type}, "
             f"properties={self.properties})"
         )
