@@ -128,6 +128,24 @@ class Neo4jDriver:
         result = self.execute_query(query, parameters)
         return self._cast_to_nodes(result)[0] if result else None
 
+    def update_node(
+        self,
+        labels: List[Label],
+        match_criteria: Dict[str, Any],
+        new_properties: Dict[str, Any],
+    ) -> Node:
+        """Update an existing node in the Neo4j database."""
+        match_clause = " AND ".join([f"n.{key} = ${key}" for key in match_criteria])
+        query = f"""
+        MATCH (n:{':'.join([label.value for label in labels])})
+        WHERE {match_clause}
+        SET n += $new_properties
+        RETURN labels(n) AS labels, properties(n) AS props
+        """
+        parameters = {**match_criteria, "new_properties": new_properties}
+        result = self.execute_query(query, parameters)
+        return self._cast_to_nodes(result)[0] if result else None
+
     def get_relationships(
         self,
         relationship_types: List[RelationshipType],

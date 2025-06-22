@@ -23,13 +23,22 @@ def main():
         password=os.getenv("NEO4J_PASSWORD"),
     )
     my_neo4j_driver.connect(my_connection_model)
-    relationships = my_neo4j_driver.get_relationships(
-        relationship_types=[RelationshipType.ACTED_IN],
-        end_node_labels=[Label.MOVIE],
-        end_node_properties={"title": "As Good as It Gets"},
-        limit=5,
+    
+    # Step 1: Create a test node
+    print("Creating test node...")
+    test_node = my_neo4j_driver.create_node(
+        labels=[Label.PERSON], properties={"name": "John Doe", "age": 30}
     )
-    print(relationships)
+    print("Created node:", test_node)
+
+    # Step 2: Update the test node's age and name
+    print("Updating test node...")
+    updated_node = my_neo4j_driver.update_node(
+        labels=[Label.PERSON],
+        match_criteria={"name": "John Doe"},  # Match using unique property
+        new_properties={"age": 35, "name": "Johnathan Doe"},
+    )
+    print("Updated node:", updated_node)
 
 
 if __name__ == "__main__":
