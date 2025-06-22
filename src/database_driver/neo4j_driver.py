@@ -144,7 +144,7 @@ class Neo4jDriver:
         MATCH (n:{':'.join([label.value for label in labels])})
         WHERE {match_clause}
         SET n += $new_properties
-        RETURN labels(n) AS labels, properties(n) AS props
+        RETURN id(n) AS id, labels(n) AS labels, properties(n) AS props
         """
         parameters = {**match_criteria, "new_properties": new_properties}
         result = self.execute_query(query, parameters)

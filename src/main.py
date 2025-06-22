@@ -58,16 +58,17 @@ def main():
     nodes = my_neo4j_driver.get_nodes()
     print("All nodes in the database: ", nodes)
 
-    # # Update nodes
-    # trung_updated = my_neo4j_driver.update_node(
-    #     labels=[Label.PERSON],
-    #     match_criteria={"name": "Trung"},
-    #     new_properties={"age": 999},
-    # )
+    # Update nodes
+    trung_updated = my_neo4j_driver.update_node(
+        labels=[Label.PERSON],
+        match_criteria={"name": "Trung"},
+        new_properties={"age": 999},
+    )
+    print(f"Updated node: {trung_updated}")
 
-    # # Get all nodes again to see the update
-    # nodes = my_neo4j_driver.get_nodes()
-    # print("All nodes in the database: ", nodes)
+    # Get all nodes again to see the update
+    nodes = my_neo4j_driver.get_nodes()
+    print("All nodes in the database: ", nodes)
 
     # Create relationships
     # vo_knows_huong = my_neo4j_driver.create_relationship(
