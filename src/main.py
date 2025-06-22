@@ -112,11 +112,9 @@ def main():
     print("All relationships in the database: ", all_relationships)
 
     # Update relationships
-    huong_knows_vo_updated = my_neo4j_driver.update_relationship(
+    huong_knows_vo_updated = my_neo4j_driver.update_relationships(
         start_node_labels=[Label.PERSON],
-        start_node_properties={"name": "Huong"},
         end_node_labels=[Label.PERSON],
-        end_node_properties={"name": "Vo"},
         relationship_type=RelationshipType.KNOWS,
         new_properties={"since": date(2023, 2, 2)},
     )

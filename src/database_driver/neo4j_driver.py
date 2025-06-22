@@ -267,7 +267,68 @@ class Neo4jDriver:
         result = self.execute_query(query, parameters)
         return self._cast_to_relationships(result)[0] if result else None
 
-    def update_relationship(
+    def update_relationships(
+        self,
+        start_node_labels: List[Label] = None,
+        start_node_properties: Dict[str, Any] = None,
+        end_node_labels: List[Label] = None,
+        end_node_properties: Dict[str, Any] = None,
+        relationship_type: RelationshipType = None,
+        new_properties: Dict[str, Any] = None,
+    ) -> Relationship:
+        """Update an existing relationship with new properties."""
+
+        if not relationship_type:
+            self._logger.log_error("Relationship type must be provided.")
+            raise ValueError("Relationship type must be provided.")
+
+        if not new_properties:
+            self._logger.log_error("New properties must be provided for update.")
+            raise ValueError("New properties must be provided for update.")
+
+        # Build MATCH pattern for start node
+        start_node_pattern = "start"
+        if start_node_labels:
+            start_node_pattern += (
+                f":{':'.join(label.value for label in start_node_labels)}"
+            )
+        if start_node_properties:
+            start_node_pattern += (
+                " {"
+                + ", ".join(f"{k}: $start_{k}" for k in start_node_properties)
+                + "}"
+            )
+
+        # Build MATCH pattern for end node
+        end_node_pattern = "end"
+        if end_node_labels:
+            end_node_pattern += f":{':'.join(label.value for label in end_node_labels)}"
+        if end_node_properties:
+            end_node_pattern += (
+                " {" + ", ".join(f"{k}: $end_{k}" for k in end_node_properties) + "}"
+            )
+
+        match_clause = f"MATCH ({start_node_pattern})-[r:{relationship_type.value}]->({end_node_pattern})"
+
+        query = (
+            f"{match_clause} SET r += $new_properties "
+            "RETURN id(r) AS id, id(start) AS start_id, id(end) AS end_id, type(r) AS type, properties(r) AS properties"
+        )
+
+        parameters = {
+            **{f"start_{k}": v for k, v in (start_node_properties or {}).items()},
+            **{f"end_{k}": v for k, v in (end_node_properties or {}).items()},
+            "new_properties": new_properties,
+        }
+
+        self._logger.log_info(
+            f"Updating relationship of type '{relationship_type.value}' with new properties: {new_properties}"
+        )
+
+        result = self.execute_query(query, parameters)
+        return self._cast_to_relationships(result) if result else None
+
+    def delete_relationship(
         self,
         start_node_labels: List[Label],
         start_node_properties: Dict[str, Any],
