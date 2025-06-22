@@ -202,6 +202,44 @@ class Neo4jDriver:
         result = self.execute_query(query, parameters)
         return self._cast_to_nodes(result)[0] if result else None
 
+    def delete_nodes(
+        self,
+        labels: List[Label] = None,
+        match_criteria: Dict[str, Any] = None,
+        force: bool = False,
+    ) -> int:
+        """Delete a node from the Neo4j database."""
+        if not labels and not match_criteria:
+            if force:
+                self._logger.log_warning(
+                    "No labels or match criteria provided. If you want to delete all nodes, set force=True."
+                )
+                return None
+            else:
+                query = "MATCH (n) DETACH DELETE n RETURN count(n) AS deleted_count"
+                result = self.execute_query(query)
+                deleted_count = result[0]["deleted_count"] if result else 0
+                self._logger.log_warning(
+                    f"Deleted all ({deleted_count}) nodes in the database (force=True)."
+                )
+                return deleted_count
+
+        query = f"MATCH (n{':' + ':'.join(label.value for label in labels) if labels else ''})"
+        if match_criteria:
+            conditions = [f"n.{key} = ${key}" for key in match_criteria.keys()]
+            query += " WHERE " + " AND ".join(conditions)
+        query += " DETACH DELETE n RETURN count(n) AS deleted_count"
+
+        self._logger.log_info(
+            f"Deleting nodes with labels: {[label.value for label in labels] if labels else '*'} "
+            f"and match criteria: {match_criteria or '{}'}"
+        )
+
+        result = self.execute_query(query, match_criteria or {})
+        deleted_count = result[0]["deleted_count"] if result else 0
+        self._logger.log_info(f"Deleted {deleted_count} node(s) from the database.")
+        return deleted_count
+
     def get_relationships(
         self,
         types: List[RelationshipType] = None,

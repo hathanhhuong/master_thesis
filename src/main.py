@@ -130,11 +130,11 @@ def main():
     )
     print(f"Deleted relationships count: {deleted_relationships_count}")
 
-    # # Delete node
-    # deleted_nodes_count = my_neo4j_driver.delete_nodes(
-    #     match_criteria={"name": "Prison Break"},
-    # )
-    # print(f"Deleted nodes count: {deleted_nodes_count}")
+    # Delete node
+    deleted_nodes_count = my_neo4j_driver.delete_nodes(
+        match_criteria={"name": "Prison Break"},
+    )
+    print(f"Deleted nodes count: {deleted_nodes_count}")
 
 
 if __name__ == "__main__":
