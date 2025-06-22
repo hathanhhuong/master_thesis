@@ -5,7 +5,7 @@ from neo4j.time import Date as Neo4jDate, DateTime as Neo4jDateTime
 
 from logger.logger import Logger
 from models.neo4j_driver_models.connection_model import ConnectionModel
-from models.neo4j_driver_models.database_models import Node
+from models.neo4j_driver_models.database_models import Node, Relationship
 from utils.constants import NEO4J_DEFAULT_NUMBER_OF_NODES
 from utils.enums import Label, RelationshipType
 
@@ -87,7 +87,43 @@ class Neo4jDriver:
             return {k: convert_value(v) for k, v in props.items()}
 
         return [
-            Node(labels=entry["labels"], properties=convert_props(entry["props"]))
+            Node(
+                id=entry["id"],
+                labels=entry["labels"],
+                properties=convert_props(entry["properties"]),
+            )
+            for entry in result
+        ]
+
+    def _cast_to_relationships(
+        self, result: List[Dict[str, Any]]
+    ) -> List[Relationship]:
+        def convert_value(value):
+            if isinstance(value, Neo4jDate):
+                return date(value.year, value.month, value.day)
+            elif isinstance(value, Neo4jDateTime):
+                return datetime(
+                    value.year,
+                    value.month,
+                    value.day,
+                    value.hour,
+                    value.minute,
+                    value.second,
+                    value.microsecond,
+                )
+            return value
+
+        def convert_props(props):
+            return {k: convert_value(v) for k, v in props.items()}
+
+        return [
+            Relationship(
+                id=entry["id"],
+                start_id=entry["start_id"],
+                end_id=entry["end_id"],
+                type=entry["type"],
+                properties=convert_props(entry["properties"]),
+            )
             for entry in result
         ]
 
@@ -96,7 +132,7 @@ class Neo4jDriver:
         labels: List[Label] = None,
         properties: Dict[str, any] = None,
         limit: int = NEO4J_DEFAULT_NUMBER_OF_NODES,
-    ) -> list[dict]:
+    ) -> list[Node]:
         """Retrieve nodes with a specific labels."""
         if labels:
             query = f"MATCH (n:{':'.join([label.value for label in labels])})"
@@ -113,7 +149,7 @@ class Neo4jDriver:
                     for key, value in properties.items()
                 ]
             )
-        query += " RETURN labels(n) AS labels, properties(n) AS props"
+        query += " RETURN id(n) AS id, labels(n) AS labels, properties(n) AS properties"
         query += f" LIMIT {limit}"
         self._logger.log_info(
             f"Retrieving nodes with labels: {[label.value for label in labels] if labels else '*'} "
@@ -123,26 +159,104 @@ class Neo4jDriver:
 
     def create_node(self, labels: List[Label], properties: Dict[str, Any]) -> Node:
         """Create a new node in the Neo4j database."""
-        query = f"CREATE (n:{':'.join([label.value for label in labels])}) SET n = $properties RETURN labels(n) AS labels, properties(n) AS props"
+        query = f"CREATE (n:{':'.join([label.value for label in labels])}) SET n = $properties RETURN id(n) AS id, labels(n) AS labels, properties(n) AS properties"
         parameters = {"properties": properties}
         result = self.execute_query(query, parameters)
         return self._cast_to_nodes(result)[0] if result else None
 
+    def update_nodes(
+        self,
+        labels: List[Label] = None,
+        match_criteria: Dict[str, Any] = None,
+        new_properties: Dict[str, Any] = None,
+    ) -> Node:
+        """Update an existing node in the Neo4j database."""
+        if not new_properties:
+            self._logger.log_error("New properties must be provided for update.")
+            raise ValueError("New properties must be provided for update.")
+
+        match_clause = "MATCH (n"
+        if labels:
+            match_clause += f":{':'.join(label.value for label in labels)}"
+        match_clause += ")"
+
+        where_clause = ""
+        if match_criteria:
+            conditions = [f"n.{key} = ${key}" for key in match_criteria]
+            where_clause = "WHERE " + " AND ".join(conditions)
+
+        query = f"""
+        {match_clause}
+        {where_clause}
+        SET n += $new_properties
+        RETURN id(n) AS id, labels(n) AS labels, properties(n) AS properties
+        """
+
+        parameters = {**(match_criteria or {}), "new_properties": new_properties}
+
+        self._logger.log_info(
+            f"Updating node with labels: {[label.value for label in labels] if labels else '*'} "
+            f"and match_criteria: {match_criteria or '{}'}, new_properties: {new_properties}"
+        )
+
+        result = self.execute_query(query, parameters)
+        return self._cast_to_nodes(result)[0] if result else None
+
+    def delete_nodes(
+        self,
+        labels: List[Label] = None,
+        match_criteria: Dict[str, Any] = None,
+        force: bool = False,
+    ) -> int:
+        """Delete a node from the Neo4j database."""
+        if not labels and not match_criteria:
+            if force:
+                self._logger.log_warning(
+                    "No labels or match criteria provided. If you want to delete all nodes, set force=True."
+                )
+                return None
+            else:
+                query = "MATCH (n) DETACH DELETE n RETURN count(n) AS deleted_count"
+                result = self.execute_query(query)
+                deleted_count = result[0]["deleted_count"] if result else 0
+                self._logger.log_warning(
+                    f"Deleted all ({deleted_count}) nodes in the database (force=True)."
+                )
+                return deleted_count
+
+        query = f"MATCH (n{':' + ':'.join(label.value for label in labels) if labels else ''})"
+        if match_criteria:
+            conditions = [f"n.{key} = ${key}" for key in match_criteria.keys()]
+            query += " WHERE " + " AND ".join(conditions)
+        query += " DETACH DELETE n RETURN count(n) AS deleted_count"
+
+        self._logger.log_info(
+            f"Deleting nodes with labels: {[label.value for label in labels] if labels else '*'} "
+            f"and match criteria: {match_criteria or '{}'}"
+        )
+
+        result = self.execute_query(query, match_criteria or {})
+        deleted_count = result[0]["deleted_count"] if result else 0
+        self._logger.log_info(f"Deleted {deleted_count} node(s) from the database.")
+        return deleted_count
+
     def get_relationships(
         self,
-        relationship_types: List[RelationshipType],
+        types: List[RelationshipType] = None,
         start_node_labels: List[Label] = None,
         start_node_properties: Dict[str, Any] = None,
         end_node_labels: List[Label] = None,
         end_node_properties: Dict[str, Any] = None,
         limit: int = NEO4J_DEFAULT_NUMBER_OF_NODES,
-    ) -> List[Dict[str, Any]]:
+    ) -> List[Relationship]:
         """Retrieve relationships between nodes."""
-        start_node = "start_node"
+        start_node_str = "start_node"
         if start_node_labels:
-            start_node += f":{':'.join([label.value for label in start_node_labels])}"
+            start_node_str += (
+                f":{':'.join([label.value for label in start_node_labels])}"
+            )
         if start_node_properties:
-            start_node += " WHERE " + " AND ".join(
+            start_node_str += " WHERE " + " AND ".join(
                 [
                     (
                         f"start_node.{key} = '{value}'"
@@ -153,11 +267,11 @@ class Neo4jDriver:
                 ]
             )
 
-        end_node = "end_node"
+        end_node_str = "end_node"
         if end_node_labels:
-            end_node += f":{':'.join([label.value for label in end_node_labels])}"
+            end_node_str += f":{':'.join([label.value for label in end_node_labels])}"
         if end_node_properties:
-            end_node += " WHERE " + " AND ".join(
+            end_node_str += " WHERE " + " AND ".join(
                 [
                     (
                         f"end_node.{key} = '{value}'"
@@ -168,11 +282,184 @@ class Neo4jDriver:
                 ]
             )
 
+        if types:
+            type_str = ":" + ":".join(rt.value for rt in types)
+        else:
+            type_str = ""
+
         query = (
-            f"MATCH ({start_node})-[r:{':'.join([rt.value for rt in relationship_types])}]->({end_node}) "
-            "RETURN start_node, end_node, type(r) AS relationship_type, properties(r) AS props "
+            f"MATCH ({start_node_str})-[r{type_str}]->({end_node_str}) "
+            "RETURN id(r) as id, id(start_node) as start_id, id(end_node) as end_id, type(r) AS type, properties(r) AS properties "
             f"LIMIT {limit}"
         )
 
         result = self.execute_query(query)
-        return result
+        return self._cast_to_relationships(result) if result else None
+
+    def create_relationship(
+        self,
+        start_node_labels: List[Label],
+        start_node_properties: Dict[str, Any],
+        end_node_labels: List[Label],
+        end_node_properties: Dict[str, Any],
+        type: RelationshipType,
+        properties: Dict[str, Any] = None,
+    ) -> Relationship:
+        """Create a relationship between two nodes."""
+
+        query = (
+            f"MATCH (start:{':'.join([label.value for label in start_node_labels])} "
+            f"{{{', '.join([f'{k}: $start_{k}' for k in start_node_properties])}}}), "
+            f"(end:{':'.join([label.value for label in end_node_labels])} "
+            f"{{{', '.join([f'{k}: $end_{k}' for k in end_node_properties])}}}) "
+            f"CREATE (start)-[r:{type.value} $props]->(end) "
+            f"RETURN id(r) AS id, id(start) AS start_id, id(end) AS end_id, type(r) AS type, properties(r) AS properties"
+        )
+
+        parameters = {
+            **{f"start_{k}": v for k, v in start_node_properties.items()},
+            **{f"end_{k}": v for k, v in end_node_properties.items()},
+            "props": properties or {},
+        }
+
+        result = self.execute_query(query, parameters)
+        return self._cast_to_relationships(result)[0] if result else None
+
+    def update_relationships(
+        self,
+        start_node_labels: List[Label] = None,
+        start_node_properties: Dict[str, Any] = None,
+        end_node_labels: List[Label] = None,
+        end_node_properties: Dict[str, Any] = None,
+        relationship_type: RelationshipType = None,
+        new_properties: Dict[str, Any] = None,
+    ) -> Relationship:
+        """Update an existing relationship with new properties."""
+
+        if not relationship_type:
+            self._logger.log_error("Relationship type must be provided.")
+            raise ValueError("Relationship type must be provided.")
+
+        if not new_properties:
+            self._logger.log_error("New properties must be provided for update.")
+            raise ValueError("New properties must be provided for update.")
+
+        # Build MATCH pattern for start node
+        start_node_pattern = "start"
+        if start_node_labels:
+            start_node_pattern += (
+                f":{':'.join(label.value for label in start_node_labels)}"
+            )
+        if start_node_properties:
+            start_node_pattern += (
+                " {"
+                + ", ".join(f"{k}: $start_{k}" for k in start_node_properties)
+                + "}"
+            )
+
+        # Build MATCH pattern for end node
+        end_node_pattern = "end"
+        if end_node_labels:
+            end_node_pattern += f":{':'.join(label.value for label in end_node_labels)}"
+        if end_node_properties:
+            end_node_pattern += (
+                " {" + ", ".join(f"{k}: $end_{k}" for k in end_node_properties) + "}"
+            )
+
+        match_clause = f"MATCH ({start_node_pattern})-[r:{relationship_type.value}]->({end_node_pattern})"
+
+        query = (
+            f"{match_clause} SET r += $new_properties "
+            "RETURN id(r) AS id, id(start) AS start_id, id(end) AS end_id, type(r) AS type, properties(r) AS properties"
+        )
+
+        parameters = {
+            **{f"start_{k}": v for k, v in (start_node_properties or {}).items()},
+            **{f"end_{k}": v for k, v in (end_node_properties or {}).items()},
+            "new_properties": new_properties,
+        }
+
+        self._logger.log_info(
+            f"Updating relationship of type '{relationship_type.value}' with new properties: {new_properties}"
+        )
+
+        result = self.execute_query(query, parameters)
+        return self._cast_to_relationships(result) if result else None
+
+    def delete_relationships(
+        self,
+        start_node_labels: List[Label] = None,
+        start_node_properties: Dict[str, Any] = None,
+        end_node_labels: List[Label] = None,
+        end_node_properties: Dict[str, Any] = None,
+        relationship_type: RelationshipType = None,
+        force: bool = False,
+    ) -> int:
+        """Delete relationships between nodes with optional filtering."""
+
+        if (
+            not start_node_labels
+            and not start_node_properties
+            and not end_node_labels
+            and not end_node_properties
+            and not relationship_type
+        ):
+            if force:
+                self._logger.log_warning(
+                    "No specific labels or match criteria provided. If you want to delete all relationships, set force=True."
+                )
+                return None
+            else:
+                query = "MATCH ()-[r]->() DELETE r RETURN count(r) AS deleted_count"
+                result = self.execute_query(query)
+                deleted_count = result[0]["deleted_count"] if result else 0
+                self._logger.log_warning(
+                    f"Deleted all ({deleted_count}) relationships in the database (force=True)."
+                )
+                return deleted_count
+
+        start_node_pattern = "start"
+        if start_node_labels:
+            start_node_pattern += (
+                f":{':'.join(label.value for label in start_node_labels)}"
+            )
+        if start_node_properties:
+            start_node_pattern += (
+                " {"
+                + ", ".join(f"{k}: $start_{k}" for k in start_node_properties)
+                + "}"
+            )
+
+        # Build end node pattern
+        end_node_pattern = "end"
+        if end_node_labels:
+            end_node_pattern += f":{':'.join(label.value for label in end_node_labels)}"
+        if end_node_properties:
+            end_node_pattern += (
+                " {" + ", ".join(f"{k}: $end_{k}" for k in end_node_properties) + "}"
+            )
+
+        # Build relationship pattern
+        relationship_pattern = "r"
+        if relationship_type:
+            relationship_pattern += f":{relationship_type.value}"
+
+        match_clause = f"MATCH ({start_node_pattern})-[{relationship_pattern}]->({end_node_pattern})"
+        query = f"{match_clause} DELETE r RETURN count(r) AS deleted_count"
+
+        # Prepare parameters
+        parameters = {
+            **{f"start_{k}": v for k, v in (start_node_properties or {}).items()},
+            **{f"end_{k}": v for k, v in (end_node_properties or {}).items()},
+        }
+
+        self._logger.log_info(
+            f"Deleting relationships of type: {relationship_type.value if relationship_type else '*'}, "
+            f"start_node_labels: {[label.value for label in start_node_labels] if start_node_labels else '*'}, "
+            f"end_node_labels: {[label.value for label in end_node_labels] if end_node_labels else '*'}"
+        )
+
+        result = self.execute_query(query, parameters)
+        deleted_count = result[0]["deleted_count"] if result else 0
+        self._logger.log_info(f"Deleted {deleted_count} relationship(s).")
+        return deleted_count
