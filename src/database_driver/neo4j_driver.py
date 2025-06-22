@@ -184,19 +184,21 @@ class Neo4jDriver:
 
     def get_relationships(
         self,
-        relationship_types: List[RelationshipType],
+        types: List[RelationshipType] = None,
         start_node_labels: List[Label] = None,
         start_node_properties: Dict[str, Any] = None,
         end_node_labels: List[Label] = None,
         end_node_properties: Dict[str, Any] = None,
         limit: int = NEO4J_DEFAULT_NUMBER_OF_NODES,
-    ) -> List[Dict[str, Any]]:
+    ) -> List[Relationship]:
         """Retrieve relationships between nodes."""
-        start_node = "start_node"
+        start_node_str = "start_node"
         if start_node_labels:
-            start_node += f":{':'.join([label.value for label in start_node_labels])}"
+            start_node_str += (
+                f":{':'.join([label.value for label in start_node_labels])}"
+            )
         if start_node_properties:
-            start_node += " WHERE " + " AND ".join(
+            start_node_str += " WHERE " + " AND ".join(
                 [
                     (
                         f"start_node.{key} = '{value}'"
@@ -207,11 +209,11 @@ class Neo4jDriver:
                 ]
             )
 
-        end_node = "end_node"
+        end_node_str = "end_node"
         if end_node_labels:
-            end_node += f":{':'.join([label.value for label in end_node_labels])}"
+            end_node_str += f":{':'.join([label.value for label in end_node_labels])}"
         if end_node_properties:
-            end_node += " WHERE " + " AND ".join(
+            end_node_str += " WHERE " + " AND ".join(
                 [
                     (
                         f"end_node.{key} = '{value}'"
@@ -222,14 +224,19 @@ class Neo4jDriver:
                 ]
             )
 
+        if types:
+            type_str = ":" + ":".join(rt.value for rt in types)
+        else:
+            type_str = ""
+
         query = (
-            f"MATCH ({start_node})-[r:{':'.join([rt.value for rt in relationship_types])}]->({end_node}) "
-            "RETURN start_node, end_node, type(r) AS relationship_type, properties(r) AS props "
+            f"MATCH ({start_node_str})-[r{type_str}]->({end_node_str}) "
+            "RETURN id(r) as id, id(start_node) as start_id, id(end_node) as end_id, type(r) AS type, properties(r) AS properties "
             f"LIMIT {limit}"
         )
 
         result = self.execute_query(query)
-        return result
+        return self._cast_to_relationships(result) if result else None
 
     def create_relationship(
         self,

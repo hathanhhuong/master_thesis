@@ -101,9 +101,11 @@ def main():
     )
     print(f"Created relationship: {trung_watches_prison_break}")
 
-    # # Get all relationships
-    # all_relationships = my_neo4j_driver.get_relationships()
-    # print("All relationships in the database: ", all_relationships)
+    # Get all relationships with start node properties
+    all_relationships = my_neo4j_driver.get_relationships(
+        start_node_properties={"name": "Huong"},
+    )
+    print("All relationships in the database: ", all_relationships)
 
     # # Update relationships
     # huong_knows_vo_updated = my_neo4j_driver.update_relationship(
