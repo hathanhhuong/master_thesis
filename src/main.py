@@ -47,6 +47,10 @@ def main():
         labels=[Label.PERSON], properties={"name": "Vo", "age": 31}
     )
     print(f"Created node: {vo}")
+    uyen = my_neo4j_driver.create_node(
+        labels=[Label.PERSON], properties={"name": "Uyen", "age": 28}
+    )
+    print(f"Created node: {uyen}")
 
     prison_break = my_neo4j_driver.create_node(
         labels=[Label.MOVIES],
@@ -76,8 +80,8 @@ def main():
         start_node_properties={"name": "Vo"},
         end_node_labels=[Label.PERSON],
         end_node_properties={"name": "Huong"},
-        relationship_type=RelationshipType.KNOWS,
-        relationship_properties={"since": date(2023, 1, 1)},
+        type=RelationshipType.KNOWS,
+        properties={"since": date(2023, 1, 1)},
     )
     print(f"Created relationship: {vo_knows_huong}")
 
@@ -86,8 +90,8 @@ def main():
         start_node_properties={"name": "Huong"},
         end_node_labels=[Label.PERSON],
         end_node_properties={"name": "Vo"},
-        relationship_type=RelationshipType.KNOWS,
-        relationship_properties={"since": date(2023, 1, 1)},
+        type=RelationshipType.KNOWS,
+        properties={"since": date(2023, 1, 1)},
     )
     print(f"Created relationship: {huong_knows_vo}")
 
@@ -96,8 +100,8 @@ def main():
         start_node_properties={"name": "Trung"},
         end_node_labels=[Label.MOVIES],
         end_node_properties={"name": "Prison Break"},
-        relationship_type=RelationshipType.WATCH,
-        relationship_properties={"since": date(2025, 6, 15)},
+        type=RelationshipType.WATCHES,
+        properties={"since": date(2025, 6, 15)},
     )
     print(f"Created relationship: {trung_watches_prison_break}")
 
@@ -107,20 +111,20 @@ def main():
     )
     print("All relationships in the database: ", all_relationships)
 
-    # # Update relationships
-    # huong_knows_vo_updated = my_neo4j_driver.update_relationship(
-    #     start_node_labels=[Label.PERSON],
-    #     start_node_properties={"name": "Huong"},
-    #     end_node_labels=[Label.PERSON],
-    #     end_node_properties={"name": "Vo"},
-    #     relationship_type=RelationshipType.KNOWS,
-    #     new_properties={"since": date(2023, 2, 2)},
-    # )
-    # print(f"Updated relationship: {huong_knows_vo_updated}")
+    # Update relationships
+    huong_knows_vo_updated = my_neo4j_driver.update_relationship(
+        start_node_labels=[Label.PERSON],
+        start_node_properties={"name": "Huong"},
+        end_node_labels=[Label.PERSON],
+        end_node_properties={"name": "Vo"},
+        relationship_type=RelationshipType.KNOWS,
+        new_properties={"since": date(2023, 2, 2)},
+    )
+    print(f"Updated relationship: {huong_knows_vo_updated}")
 
-    # # Get all relationships again to see the update
-    # all_relationships = my_neo4j_driver.get_relationships()
-    # print("All relationships in the database after update: ", all_relationships)
+    # Get all relationships again to see the update
+    all_relationships = my_neo4j_driver.get_relationships()
+    print("All relationships in the database after update: ", all_relationships)
 
 
 if __name__ == "__main__":

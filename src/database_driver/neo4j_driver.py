@@ -244,8 +244,8 @@ class Neo4jDriver:
         start_node_properties: Dict[str, Any],
         end_node_labels: List[Label],
         end_node_properties: Dict[str, Any],
-        relationship_type: RelationshipType,
-        relationship_properties: Dict[str, Any] = None,
+        type: RelationshipType,
+        properties: Dict[str, Any] = None,
     ) -> Relationship:
         """Create a relationship between two nodes."""
 
@@ -254,16 +254,46 @@ class Neo4jDriver:
             f"{{{', '.join([f'{k}: $start_{k}' for k in start_node_properties])}}}), "
             f"(end:{':'.join([label.value for label in end_node_labels])} "
             f"{{{', '.join([f'{k}: $end_{k}' for k in end_node_properties])}}}) "
-            f"CREATE (start)-[r:{relationship_type.value} $props]->(end) "
+            f"CREATE (start)-[r:{type.value} $props]->(end) "
             f"RETURN id(r) AS id, id(start) AS start_id, id(end) AS end_id, type(r) AS type, properties(r) AS properties"
         )
 
         parameters = {
             **{f"start_{k}": v for k, v in start_node_properties.items()},
             **{f"end_{k}": v for k, v in end_node_properties.items()},
-            "props": relationship_properties or {},
+            "props": properties or {},
         }
 
         result = self.execute_query(query, parameters)
         return self._cast_to_relationships(result)[0] if result else None
 
+    def update_relationship(
+        self,
+        start_node_labels: List[Label],
+        start_node_properties: Dict[str, Any],
+        end_node_labels: List[Label],
+        end_node_properties: Dict[str, Any],
+        relationship_type: RelationshipType,
+        new_properties: Dict[str, Any],
+    ) -> Relationship:
+        """Update an existing relationship."""
+        match_clause = (
+            f"MATCH (start:{':'.join([label.value for label in start_node_labels])} "
+            f"{{{', '.join([f'{k}: $start_{k}' for k in start_node_properties])}}})-"
+            f"[r:{relationship_type.value}]->(end:{':'.join([label.value for label in end_node_labels])} "
+            f"{{{', '.join([f'{k}: $end_{k}' for k in end_node_properties])}}})"
+        )
+
+        query = (
+            f"{match_clause} SET r += $new_properties "
+            "RETURN id(r) AS id, id(start) AS start_id, id(end) AS end_id, type(r) AS type, properties(r) AS properties"
+        )
+
+        parameters = {
+            **{f"start_{k}": v for k, v in start_node_properties.items()},
+            **{f"end_{k}": v for k, v in end_node_properties.items()},
+            "new_properties": new_properties,
+        }
+
+        result = self.execute_query(query, parameters)
+        return self._cast_to_relationships(result)[0] if result else None

@@ -8,4 +8,4 @@ class Label(Enum):
 
 class RelationshipType(Enum):
     KNOWS = "KNOWS"
-    WATCH = "WATCH"
+    WATCHES = "WATCHES"
