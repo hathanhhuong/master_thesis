@@ -70,26 +70,36 @@ def main():
     nodes = my_neo4j_driver.get_nodes()
     print("All nodes in the database: ", nodes)
 
-    # # Create relationships
-    # vo_knows_huong = my_neo4j_driver.create_relationship(
-    #     start_node_labels=[Label.PERSON],
-    #     start_node_properties={"name": "Vo"},
-    #     end_node_labels=[Label.PERSON],
-    #     end_node_properties={"name": "Huong"},
-    #     relationship_type=RelationshipType.KNOWS,
-    #     relationship_properties={"since": date(2023, 1, 1)},
-    # )
-    # print(f"Created relationship: {vo_knows_huong}")
+    # Create relationships
+    vo_knows_huong = my_neo4j_driver.create_relationship(
+        start_node_labels=[Label.PERSON],
+        start_node_properties={"name": "Vo"},
+        end_node_labels=[Label.PERSON],
+        end_node_properties={"name": "Huong"},
+        relationship_type=RelationshipType.KNOWS,
+        relationship_properties={"since": date(2023, 1, 1)},
+    )
+    print(f"Created relationship: {vo_knows_huong}")
 
-    # huong_knows_vo = my_neo4j_driver.create_relationship(
-    #     start_node_labels=[Label.PERSON],
-    #     start_node_properties={"name": "Huong"},
-    #     end_node_labels=[Label.PERSON],
-    #     end_node_properties={"name": "Vo"},
-    #     relationship_type=RelationshipType.KNOWS,
-    #     relationship_properties={"since": date(2023, 1, 1)},
-    # )
-    # print(f"Created relationship: {huong_knows_vo}")
+    huong_knows_vo = my_neo4j_driver.create_relationship(
+        start_node_labels=[Label.PERSON],
+        start_node_properties={"name": "Huong"},
+        end_node_labels=[Label.PERSON],
+        end_node_properties={"name": "Vo"},
+        relationship_type=RelationshipType.KNOWS,
+        relationship_properties={"since": date(2023, 1, 1)},
+    )
+    print(f"Created relationship: {huong_knows_vo}")
+
+    trung_watches_prison_break = my_neo4j_driver.create_relationship(
+        start_node_labels=[Label.PERSON],
+        start_node_properties={"name": "Trung"},
+        end_node_labels=[Label.MOVIES],
+        end_node_properties={"name": "Prison Break"},
+        relationship_type=RelationshipType.WATCH,
+        relationship_properties={"since": date(2025, 6, 15)},
+    )
+    print(f"Created relationship: {trung_watches_prison_break}")
 
     # # Get all relationships
     # all_relationships = my_neo4j_driver.get_relationships()
