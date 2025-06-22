@@ -87,7 +87,11 @@ class Neo4jDriver:
             return {k: convert_value(v) for k, v in props.items()}
 
         return [
-            Node(labels=entry["labels"], properties=convert_props(entry["props"]))
+            Node(
+                id=entry["id"],
+                labels=entry["labels"],
+                properties=convert_props(entry["props"]),
+            )
             for entry in result
         ]
 
@@ -123,7 +127,7 @@ class Neo4jDriver:
 
     def create_node(self, labels: List[Label], properties: Dict[str, Any]) -> Node:
         """Create a new node in the Neo4j database."""
-        query = f"CREATE (n:{':'.join([label.value for label in labels])}) SET n = $properties RETURN labels(n) AS labels, properties(n) AS props"
+        query = f"CREATE (n:{':'.join([label.value for label in labels])}) SET n = $properties RETURN id(n) AS id, labels(n) AS labels, properties(n) AS props"
         parameters = {"properties": properties}
         result = self.execute_query(query, parameters)
         return self._cast_to_nodes(result)[0] if result else None

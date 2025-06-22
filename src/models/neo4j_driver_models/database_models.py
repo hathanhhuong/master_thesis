@@ -10,11 +10,14 @@ class Node:
     Represents a node in the Neo4j database.
     """
 
+    id: int
     labels: List[Label]
     properties: Dict[str, any]
 
     def __str__(self):
-        return f"Node(labels={self.labels}, properties={self.properties})"
+        return (
+            f"Node(id = {self.id}, labels={self.labels}, properties={self.properties})"
+        )
 
 
 @dataclass
