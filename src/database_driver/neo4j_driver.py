@@ -41,7 +41,7 @@ class Neo4jDriver:
         except Exception as e:
             self._logger.log_error(f"Failed to connect to Neo4j: {e}")
 
-    def close(self):
+    def disconnect(self):
         self._driver.close()
 
     def execute_query(self, query: str, parameters=None):
