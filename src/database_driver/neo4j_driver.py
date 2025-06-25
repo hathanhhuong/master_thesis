@@ -43,6 +43,7 @@ class Neo4jDriver:
 
     def disconnect(self):
         self._driver.close()
+        self._logger.log_info("Successfully disconnected to Neo4j database.")
 
     def execute_query(self, query: str, parameters=None):
         if not self._driver:
