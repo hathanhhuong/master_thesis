@@ -41,7 +41,7 @@ class Neo4jDriver:
         except Exception as e:
             self._logger.log_error(f"Failed to connect to Neo4j: {e}")
 
-    def close(self):
+    def disconnect(self):
         self._driver.close()
 
     def execute_query(self, query: str, parameters=None):
@@ -169,7 +169,7 @@ class Neo4jDriver:
         labels: List[Label] = None,
         match_criteria: Dict[str, Any] = None,
         new_properties: Dict[str, Any] = None,
-    ) -> Node:
+    ) -> List[Node]:
         """Update an existing node in the Neo4j database."""
         if not new_properties:
             self._logger.log_error("New properties must be provided for update.")
@@ -333,7 +333,7 @@ class Neo4jDriver:
         end_node_properties: Dict[str, Any] = None,
         relationship_type: RelationshipType = None,
         new_properties: Dict[str, Any] = None,
-    ) -> Relationship:
+    ) -> List[Relationship]:
         """Update an existing relationship with new properties."""
 
         if not relationship_type:
