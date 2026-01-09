@@ -4,8 +4,8 @@ from datetime import date, datetime
 from neo4j.time import Date as Neo4jDate, DateTime as Neo4jDateTime
 
 from logger.logger import Logger
-from models.neo4j_driver_models.connection_model import ConnectionModel
-from models.neo4j_driver_models.database_models import Node, Relationship
+from dto.neo4j_driver_models.connection_model import ConnectionModel
+from dto.neo4j_driver_models.database_models import Node, Relationship
 from utils.constants import NEO4J_DEFAULT_NUMBER_OF_NODES
 from utils.enums import Label, RelationshipType
 

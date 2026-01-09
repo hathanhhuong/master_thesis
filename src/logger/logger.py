@@ -1,7 +1,7 @@
-import os
-from enum import Enum
 import inspect
 import logging
+import os
+from enum import Enum
 
 
 class LogType(Enum):
